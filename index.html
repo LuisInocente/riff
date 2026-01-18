@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Riff Player - Key of C</title>
+  <link rel="icon" href="data:,">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    header {
+      background: #222222;
+      border-bottom: 1px solid #444444;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    
+    .logo { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 6px; color: #ffffff; }
+    
+    .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #333333;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #bbbbbb;
+    }
+    .pill strong { font-weight: 800; color: #ffffff; }
+    .pill input[type="range"] { width: 60px; accent-color: #888888; }
+    
+    button {
+      border: none;
+      background: #444444;
+      color: #e0e0e0;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    button:hover { background: #555555; }
+    button.primary { background: #666666; color: #fff; }
+    button.stop { background: #aa2222; color: #fff; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.sm { padding: 2px 6px; font-size: 10px; }
+    
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 4px 0;
+    }
+    
+    .section {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      padding: 2px 8px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    
+    .section-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: #aaaaaa;
+      width: 70px;
+      flex-shrink: 0;
+    }
+    
+    .section-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    /* Grid */
+    .grid-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0 8px;
+      min-height: 0;
+    }
+    
+    .step-nums {
+      display: flex;
+      margin-left: 50px;
+      height: 14px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .step-num {
+      flex: 1;
+      text-align: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: #666666;
+    }
+    .step-num.bar { color: #cccccc; font-weight: 800; }
+    
+    .grid-area {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+    
+    .labels-column {
+      width: 46px;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    
+    .labels-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    
+    .row-label {
+      flex: 1;
+      font-weight: 700;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 4px;
+      color: #999999;
+      min-height: 16px;
+    }
+    
+    .grid {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    
+    .grid-row {
+      display: flex;
+      flex: 1;
+      gap: 1px;
+      min-height: 16px;
+    }
+    
+    .cell {
+      flex: 1;
+      border-radius: 2px;
+      border: 1px solid #222222;
+      cursor: pointer;
+      transition: background 0.05s;
+      min-height: 100%;
+    }
+    
+    /* Beat shading - dark greys */
+    .cell.beat0 { background: #4a4a4a; }
+    .cell.beat1 { background: #3a3a3a; }
+    .cell.beat2 { background: #4a4a4a; }
+    .cell.beat3 { background: #3a3a3a; }
+    .cell.beat4 { background: #424242; }
+    .cell.beat5 { background: #323232; }
+    .cell.beat6 { background: #424242; }
+    .cell.beat7 { background: #323232; }
+    
+    .cell:hover { background: #5a5a5a !important; }
+    .cell.bar { border-left: 3px solid #888888; }
+    .cell.playhead { box-shadow: inset 0 0 0 2px #fbbf24; }
+    
+    /* On states */
+    .cell.on.kick { background: #dc2626 !important; }
+    .cell.on.snare { background: #16a34a !important; }
+    .cell.on.hat { background: #2563eb !important; }
+    .cell.on.clap { background: #d97706 !important; }
+    .cell.on.bass { background: #7f1d1d !important; }
+    .cell.on.melody { background: #1e40af !important; }
+    .cell.on.chord { background: #6b21a8 !important; }
+    
+    .row-label .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 3px;
+    }
+    
+    .divider {
+      height: 1px;
+      background: #444444;
+      margin: 2px 0;
+      flex-shrink: 0;
+    }
+    
+    footer {
+      padding: 4px 8px;
+      text-align: center;
+      font-size: 9px;
+      color: #666666;
+      border-top: 1px solid #444444;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">Riff Player</div>
+    
+    <div class="controls">
+      <div class="pill">
+        <span>BPM</span>
+        <input type="range" id="tempo" min="60" max="140" value="100">
+        <strong id="tempoVal">100</strong>
+      </div>
+      
+      <div class="pill">
+        <span>Vol</span>
+        <input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.7">
+      </div>
+      
+      <div class="pill">
+        <span>Reverb</span>
+        <input type="range" id="reverbMix" min="0" max="0.7" step="0.01" value="0.2">
+      </div>
+      
+      <div class="pill">
+        <button class="sm" id="barsLeft">◀</button>
+        <span id="barsLabel">Bars 1-2</span>
+        <button class="sm" id="barsRight">▶</button>
+      </div>
+      
+      <button id="playBtn" class="primary">▶ Play</button>
+      <button id="stopBtn" class="stop" disabled>■ Stop</button>
+      <button id="clearAllBtn" class="sm">Clear All</button>
+      <button id="printBtn" class="sm">Print</button>
+    </div>
+  </header>
+  
+  <div class="main">
+    <!-- DRUMS -->
+    <div class="section" style="flex: 0.7;">
+      <div class="section-header">
+        <div class="section-label">DRUMS</div>
+        <div class="section-controls">
+          <button class="sm" id="drumClear">Clear</button>
+          <button class="sm" id="drumPreset">Beat</button>
+        </div>
+      </div>
+      <div class="grid-wrap">
+        <div class="step-nums" id="stepNums"></div>
+        <div class="grid-area">
+          <div class="labels-column">
+            <div class="labels-list" id="drumLabels"></div>
+          </div>
+          <div class="grid" id="drumGrid"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- BASS -->
+    <div class="section" style="flex: 1.2;">
+      <div class="section-header">
+        <div class="section-label">BASS</div>
+        <div class="section-controls">
+          <button class="sm" id="bassDown">▼</button>
+          <button class="sm" id="bassUp">▲</button>
+          <button class="sm" id="bassClear">Clear</button>
+        </div>
+      </div>
+      <div class="grid-wrap">
+        <div class="grid-area">
+          <div class="labels-column">
+            <div class="labels-list" id="bassLabels"></div>
+          </div>
+          <div class="grid" id="bassGrid"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- MELODY -->
+    <div class="section" style="flex: 1.2;">
+      <div class="section-header">
+        <div class="section-label">MELODY</div>
+        <div class="section-controls">
+          <button class="sm" id="melDown">▼</button>
+          <button class="sm" id="melUp">▲</button>
+          <button class="sm" id="melClear">Clear</button>
+        </div>
+      </div>
+      <div class="grid-wrap">
+        <div class="grid-area">
+          <div class="labels-column">
+            <div class="labels-list" id="melLabels"></div>
+          </div>
+          <div class="grid" id="melGrid"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- CHORDS -->
+    <div class="section" style="flex: 1;">
+      <div class="section-header">
+        <div class="section-label">CHORDS</div>
+        <div class="section-controls">
+          <button class="sm" id="chordDown">▼</button>
+          <button class="sm" id="chordUp">▲</button>
+          <button class="sm" id="chordClear">Clear</button>
+        </div>
+      </div>
+      <div class="grid-wrap">
+        <div class="grid-area">
+          <div class="labels-column">
+            <div class="labels-list" id="chordLabels"></div>
+          </div>
+          <div class="grid" id="chordGrid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <footer>Key of C Major — 4 Bars — Keyboard: A-S-D-F-G-H-J = Notes | Space = Play/Stop</footer>
+
+  <script>
+  (() => {
+    "use strict";
+    
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+    const $ = id => document.getElementById(id);
+    
+    const STEPS = 64; // 4 bars x 16 steps per bar
+    const VISIBLE_STEPS = 32; // 2 bars visible at a time
+    let viewStart = 0; // Which step to start viewing from (0 or 32)
+    
+    const tempoEl = $('tempo'), tempoValEl = $('tempoVal');
+    const masterVolEl = $('masterVol'), reverbMixEl = $('reverbMix');
+    const playBtn = $('playBtn'), stopBtn = $('stopBtn');
+    
+    let ctx = null, master = null, drumBus = null, bassBus = null, melodyBus = null, chordBus = null;
+    let convolver = null, reverbWet = null, reverbDry = null, limiter = null;
+    
+    function createReverbIR(duration, decay) {
+      const length = ctx.sampleRate * duration;
+      const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = impulse.getChannelData(ch);
+        for (let i = 0; i < length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+        }
+      }
+      return impulse;
+    }
+    
+    function ensureAudio() {
+      if (ctx) return;
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      master = ctx.createGain();
+      master.gain.value = +masterVolEl.value;
+      
+      limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.ratio.value = 8;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.1;
+      
+      drumBus = ctx.createGain(); drumBus.gain.value = 0.8;
+      bassBus = ctx.createGain(); bassBus.gain.value = 0.6;
+      melodyBus = ctx.createGain(); melodyBus.gain.value = 0.5;
+      chordBus = ctx.createGain(); chordBus.gain.value = 0.45;
+      
+      convolver = ctx.createConvolver();
+      convolver.buffer = createReverbIR(2.5, 2.5);
+      
+      reverbWet = ctx.createGain();
+      reverbWet.gain.value = +reverbMixEl.value;
+      reverbDry = ctx.createGain();
+      reverbDry.gain.value = 1;
+      
+      const preMaster = ctx.createGain();
+      preMaster.gain.value = 1;
+      
+      drumBus.connect(preMaster);
+      bassBus.connect(preMaster);
+      melodyBus.connect(preMaster);
+      chordBus.connect(preMaster);
+      
+      preMaster.connect(reverbDry);
+      preMaster.connect(convolver);
+      convolver.connect(reverbWet);
+      
+      reverbDry.connect(master);
+      reverbWet.connect(master);
+      
+      master.connect(limiter);
+      limiter.connect(ctx.destination);
+    }
+    
+    async function resumeAudio() {
+      ensureAudio();
+      if (ctx.state === 'suspended') await ctx.resume();
+    }
+    
+    masterVolEl.addEventListener('input', () => { if (master) master.gain.value = +masterVolEl.value; });
+    reverbMixEl.addEventListener('input', () => {
+      if (reverbWet) {
+        reverbWet.gain.value = +reverbMixEl.value;
+      }
+    });
+    
+    // Synths
+    function synthKick(t, dest) {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+      g.gain.setValueAtTime(1, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+      osc.connect(g); g.connect(dest);
+      osc.start(t); osc.stop(t + 0.35);
+    }
+    
+    function synthSnare(t, dest) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const n = ctx.createBufferSource(); n.buffer = buf;
+      const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1000;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.7, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+      n.connect(f); f.connect(g); g.connect(dest);
+      n.start(t); n.stop(t + 0.15);
+      
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = 180;
+      og.gain.setValueAtTime(0.5, t);
+      og.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+      o.connect(og); og.connect(dest);
+      o.start(t); o.stop(t + 0.1);
+    }
+    
+    function synthHat(t, dest) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.04, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const n = ctx.createBufferSource(); n.buffer = buf;
+      const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.3, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + 0.04);
+      n.connect(f); f.connect(g); g.connect(dest);
+      n.start(t); n.stop(t + 0.05);
+    }
+    
+    function synthClap(t, dest) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const n = ctx.createBufferSource(); n.buffer = buf;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = 1;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.6, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      n.connect(f); f.connect(g); g.connect(dest);
+      n.start(t); n.stop(t + 0.12);
+    }
+    
+    function playDrum(key, t) {
+      if (!ctx) return;
+      const time = t ?? ctx.currentTime;
+      if (key === 'kick') synthKick(time, drumBus);
+      else if (key === 'snare') synthSnare(time, drumBus);
+      else if (key === 'hat') synthHat(time, drumBus);
+      else if (key === 'clap') synthClap(time, drumBus);
+    }
+    
+    const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    
+    function noteFreq(noteName, octave) {
+      const semitones = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
+      const midi = 69 + semitones[noteName] + (octave - 4) * 12;
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+    
+    function playBass(note, octave, t) {
+      if (!ctx) return;
+      const time = t ?? ctx.currentTime;
+      const freq = noteFreq(note, octave);
+      
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+      const g = ctx.createGain(), f = ctx.createBiquadFilter();
+      
+      o1.type = 'sawtooth'; o2.type = 'triangle';
+      o1.frequency.setValueAtTime(freq, time);
+      o2.frequency.setValueAtTime(freq * 1.002, time);
+      
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(600, time);
+      f.frequency.exponentialRampToValueAtTime(150, time + 0.2);
+      f.Q.value = 2;
+      
+      g.gain.setValueAtTime(0, time);
+      g.gain.linearRampToValueAtTime(0.6, time + 0.008);
+      g.gain.setTargetAtTime(0.001, time + 0.15, 0.08);
+      
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(bassBus);
+      o1.start(time); o2.start(time);
+      o1.stop(time + 0.4); o2.stop(time + 0.4);
+    }
+    
+    function playMelody(note, octave, t) {
+      if (!ctx) return;
+      const time = t ?? ctx.currentTime;
+      const freq = noteFreq(note, octave);
+      
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+      const g = ctx.createGain(), f = ctx.createBiquadFilter();
+      
+      o1.type = 'sawtooth'; o2.type = 'sawtooth';
+      o1.frequency.setValueAtTime(freq, time);
+      o2.frequency.setValueAtTime(freq * 1.004, time);
+      o2.detune.setValueAtTime(5, time);
+      
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(2500, time);
+      f.frequency.exponentialRampToValueAtTime(600, time + 0.1);
+      f.Q.value = 1;
+      
+      g.gain.setValueAtTime(0, time);
+      g.gain.linearRampToValueAtTime(0.4, time + 0.005);
+      g.gain.setTargetAtTime(0.001, time + 0.2, 0.1);
+      
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(melodyBus);
+      o1.start(time); o2.start(time);
+      o1.stop(time + 0.5); o2.stop(time + 0.5);
+    }
+    
+    function playChordNote(note, octave, t) {
+      if (!ctx) return;
+      const time = t ?? ctx.currentTime;
+      const freq = noteFreq(note, octave);
+      
+      const o = ctx.createOscillator();
+      const g = ctx.createGain(), f = ctx.createBiquadFilter();
+      
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(freq, time);
+      
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(1800, time);
+      f.frequency.exponentialRampToValueAtTime(400, time + 0.15);
+      
+      g.gain.setValueAtTime(0, time);
+      g.gain.linearRampToValueAtTime(0.25, time + 0.01);
+      g.gain.setTargetAtTime(0.001, time + 0.25, 0.12);
+      
+      o.connect(f); f.connect(g); g.connect(chordBus);
+      o.start(time);
+      o.stop(time + 0.5);
+    }
+    
+    // Beat class: alternates per beat (4 steps), different shading per half-bar
+    function getBeatClass(step) {
+      const beat = Math.floor(step / 4) % 4;
+      const halfBar = Math.floor(step / 16) % 2;
+      return 'beat' + (beat + halfBar * 4);
+    }
+    
+    function buildStepNums() {
+      const nums = $('stepNums');
+      nums.innerHTML = '';
+      for (let i = 0; i < VISIBLE_STEPS; i++) {
+        const s = viewStart + i;
+        const n = document.createElement('div');
+        const isBarStart = s % 16 === 0;
+        n.className = 'step-num' + (isBarStart ? ' bar' : '');
+        n.textContent = isBarStart ? (Math.floor(s / 16) + 1) : '';
+        nums.appendChild(n);
+      }
+    }
+    
+    // DRUMS
+    const DRUMS = [
+      { name: 'Kick', key: 'kick', color: '#dc2626' },
+      { name: 'Snare', key: 'snare', color: '#16a34a' },
+      { name: 'HiHat', key: 'hat', color: '#2563eb' },
+      { name: 'Clap', key: 'clap', color: '#d97706' }
+    ];
+    
+    let drumPatterns = DRUMS.map(() => Array(STEPS).fill(false));
+    let drumCells = [];
+    
+    function buildDrumGrid() {
+      const labels = $('drumLabels');
+      const grid = $('drumGrid');
+      labels.innerHTML = '';
+      grid.innerHTML = '';
+      drumCells = [];
+      
+      DRUMS.forEach((drum, di) => {
+        const label = document.createElement('div');
+        label.className = 'row-label';
+        label.innerHTML = `<span class="dot" style="background:${drum.color}"></span>${drum.name}`;
+        labels.appendChild(label);
+        
+        const row = document.createElement('div');
+        row.className = 'grid-row';
+        const rowCells = [];
+        
+        for (let i = 0; i < VISIBLE_STEPS; i++) {
+          const s = viewStart + i;
+          const cell = document.createElement('div');
+          cell.className = 'cell ' + drum.key + ' ' + getBeatClass(s);
+          if (s % 16 === 0) cell.classList.add('bar');
+          if (drumPatterns[di][s]) cell.classList.add('on');
+          
+          cell.dataset.step = s;
+          cell.dataset.drumIndex = di;
+          
+          cell.addEventListener('pointerdown', async (e) => {
+            e.preventDefault();
+            await resumeAudio();
+            const step = +cell.dataset.step;
+            const idx = +cell.dataset.drumIndex;
+            drumPatterns[idx][step] = !drumPatterns[idx][step];
+            cell.classList.toggle('on', drumPatterns[idx][step]);
+            if (drumPatterns[idx][step]) playDrum(drum.key);
+            debouncedSave();
+          });
+          
+          row.appendChild(cell);
+          rowCells.push(cell);
+        }
+        
+        drumCells.push(rowCells);
+        grid.appendChild(row);
+      });
+    }
+    
+    $('drumClear').addEventListener('click', () => {
+      drumPatterns = DRUMS.map(() => Array(STEPS).fill(false));
+      drumCells.forEach(r => r.forEach(c => c.classList.remove('on')));
+      debouncedSave();
+    });
+    
+    $('drumPreset').addEventListener('click', () => {
+      const k = [], s = [], h = [], c = [];
+      for (let i = 0; i < STEPS; i++) {
+        k.push(i % 4 === 0);
+        s.push(i % 8 === 4);
+        h.push(i % 2 === 0);
+        c.push(i === 15 || i === 31);
+      }
+      drumPatterns = [k, s, h, c];
+      DRUMS.forEach((_, di) => {
+        drumCells[di].forEach((c, s) => c.classList.toggle('on', drumPatterns[di][s]));
+      });
+      debouncedSave();
+    });
+    
+    // BASS - note-based scrolling
+    let bassPattern = {};
+    let bassBaseNote = 14; // C2 = index 14 (C0=0, D0=1, ... C1=7, ... C2=14)
+    let bassCells = [];
+    
+    function noteFromIndex(idx) {
+      const noteName = NOTE_NAMES[idx % 7];
+      const octave = Math.floor(idx / 7);
+      return { name: noteName, octave, label: noteName + octave };
+    }
+    
+    function getBassVisibleNotes() {
+      const notes = [];
+      for (let i = 6; i >= 0; i--) {
+        notes.push(noteFromIndex(bassBaseNote + i));
+      }
+      return notes;
+    }
+    
+    function buildBassGrid() {
+      const labels = $('bassLabels');
+      const grid = $('bassGrid');
+      labels.innerHTML = '';
+      grid.innerHTML = '';
+      bassCells = [];
+      
+      const visibleNotes = getBassVisibleNotes();
+      
+      visibleNotes.forEach(noteInfo => {
+        const label = document.createElement('div');
+        label.className = 'row-label';
+        label.textContent = noteInfo.label;
+        labels.appendChild(label);
+        
+        const row = document.createElement('div');
+        row.className = 'grid-row';
+        
+        const key = noteInfo.name + '-' + noteInfo.octave;
+        if (!bassPattern[key]) bassPattern[key] = Array(STEPS).fill(false);
+        
+        for (let i = 0; i < VISIBLE_STEPS; i++) {
+          const s = viewStart + i;
+          const cell = document.createElement('div');
+          cell.className = 'cell bass ' + getBeatClass(s);
+          if (s % 16 === 0) cell.classList.add('bar');
+          if (bassPattern[key][s]) cell.classList.add('on');
+          
+          cell.dataset.key = key;
+          cell.dataset.note = noteInfo.name;
+          cell.dataset.octave = noteInfo.octave;
+          cell.dataset.step = s;
+          
+          cell.addEventListener('pointerdown', async (e) => {
+            e.preventDefault();
+            await resumeAudio();
+            const step = +cell.dataset.step;
+            const k = cell.dataset.key;
+            
+            bassCells.forEach(c => {
+              if (+c.dataset.step === step && c.dataset.key !== k) {
+                bassPattern[c.dataset.key][step] = false;
+                c.classList.remove('on');
+              }
+            });
+            
+            bassPattern[k][step] = !bassPattern[k][step];
+            cell.classList.toggle('on', bassPattern[k][step]);
+            if (bassPattern[k][step]) {
+              playBass(cell.dataset.note, +cell.dataset.octave);
+            }
+            debouncedSave();
+          });
+          
+          row.appendChild(cell);
+          bassCells.push(cell);
+        }
+        
+        grid.appendChild(row);
+      });
+      
+      $('bassUp').disabled = bassBaseNote >= 28; // up to C4
+      $('bassDown').disabled = bassBaseNote <= 7; // down to C1
+    }
+    
+    $('bassUp').addEventListener('click', () => {
+      if (bassBaseNote < 28) { bassBaseNote++; buildBassGrid(); debouncedSave(); }
+    });
+    $('bassDown').addEventListener('click', () => {
+      if (bassBaseNote > 7) { bassBaseNote--; buildBassGrid(); debouncedSave(); }
+    });
+    $('bassClear').addEventListener('click', () => {
+      bassPattern = {};
+      buildBassGrid();
+      debouncedSave();
+    });
+    
+    // MELODY - note-based scrolling
+    let melPattern = {};
+    let melBaseNote = 28; // C4 = index 28
+    let melCells = [];
+    
+    function getMelVisibleNotes() {
+      const notes = [];
+      for (let i = 6; i >= 0; i--) {
+        notes.push(noteFromIndex(melBaseNote + i));
+      }
+      return notes;
+    }
+    
+    function buildMelGrid() {
+      const labels = $('melLabels');
+      const grid = $('melGrid');
+      labels.innerHTML = '';
+      grid.innerHTML = '';
+      melCells = [];
+      
+      const visibleNotes = getMelVisibleNotes();
+      
+      visibleNotes.forEach(noteInfo => {
+        const label = document.createElement('div');
+        label.className = 'row-label';
+        label.textContent = noteInfo.label;
+        labels.appendChild(label);
+        
+        const row = document.createElement('div');
+        row.className = 'grid-row';
+        
+        const key = noteInfo.name + '-' + noteInfo.octave;
+        if (!melPattern[key]) melPattern[key] = Array(STEPS).fill(false);
+        
+        for (let i = 0; i < VISIBLE_STEPS; i++) {
+          const s = viewStart + i;
+          const cell = document.createElement('div');
+          cell.className = 'cell melody ' + getBeatClass(s);
+          if (s % 16 === 0) cell.classList.add('bar');
+          if (melPattern[key][s]) cell.classList.add('on');
+          
+          cell.dataset.key = key;
+          cell.dataset.note = noteInfo.name;
+          cell.dataset.octave = noteInfo.octave;
+          cell.dataset.step = s;
+          
+          cell.addEventListener('pointerdown', async (e) => {
+            e.preventDefault();
+            await resumeAudio();
+            const step = +cell.dataset.step;
+            const k = cell.dataset.key;
+            
+            melCells.forEach(c => {
+              if (+c.dataset.step === step && c.dataset.key !== k) {
+                melPattern[c.dataset.key][step] = false;
+                c.classList.remove('on');
+              }
+            });
+            
+            melPattern[k][step] = !melPattern[k][step];
+            cell.classList.toggle('on', melPattern[k][step]);
+            if (melPattern[k][step]) {
+              playMelody(cell.dataset.note, +cell.dataset.octave);
+            }
+            debouncedSave();
+          });
+          
+          row.appendChild(cell);
+          melCells.push(cell);
+        }
+        
+        grid.appendChild(row);
+      });
+      
+      $('melUp').disabled = melBaseNote >= 42; // up to C6
+      $('melDown').disabled = melBaseNote <= 21; // down to C3
+    }
+    
+    $('melUp').addEventListener('click', () => {
+      if (melBaseNote < 42) { melBaseNote++; buildMelGrid(); debouncedSave(); }
+    });
+    $('melDown').addEventListener('click', () => {
+      if (melBaseNote > 21) { melBaseNote--; buildMelGrid(); debouncedSave(); }
+    });
+    $('melClear').addEventListener('click', () => {
+      melPattern = {};
+      buildMelGrid();
+      debouncedSave();
+    });
+    
+    // CHORDS - note-based, polyphonic (multiple notes per step allowed)
+    let chordPattern = {}; // key -> Array(STEPS) of booleans
+    let chordBaseNote = 28; // C4 = index 28
+    let chordCells = [];
+    
+    function getChordVisibleNotes() {
+      const notes = [];
+      for (let i = 6; i >= 0; i--) {
+        notes.push(noteFromIndex(chordBaseNote + i));
+      }
+      return notes;
+    }
+    
+    function buildChordGrid() {
+      const labels = $('chordLabels');
+      const grid = $('chordGrid');
+      labels.innerHTML = '';
+      grid.innerHTML = '';
+      chordCells = [];
+      
+      const visibleNotes = getChordVisibleNotes();
+      
+      visibleNotes.forEach(noteInfo => {
+        const label = document.createElement('div');
+        label.className = 'row-label';
+        label.textContent = noteInfo.label;
+        labels.appendChild(label);
+        
+        const row = document.createElement('div');
+        row.className = 'grid-row';
+        
+        const key = noteInfo.name + '-' + noteInfo.octave;
+        if (!chordPattern[key]) chordPattern[key] = Array(STEPS).fill(false);
+        
+        for (let i = 0; i < VISIBLE_STEPS; i++) {
+          const s = viewStart + i;
+          const cell = document.createElement('div');
+          cell.className = 'cell chord ' + getBeatClass(s);
+          if (s % 16 === 0) cell.classList.add('bar');
+          if (chordPattern[key][s]) cell.classList.add('on');
+          
+          cell.dataset.key = key;
+          cell.dataset.note = noteInfo.name;
+          cell.dataset.octave = noteInfo.octave;
+          cell.dataset.step = s;
+          
+          cell.addEventListener('pointerdown', async (e) => {
+            e.preventDefault();
+            await resumeAudio();
+            const step = +cell.dataset.step;
+            const k = cell.dataset.key;
+            
+            // Toggle this note (allow multiple notes per step)
+            chordPattern[k][step] = !chordPattern[k][step];
+            cell.classList.toggle('on', chordPattern[k][step]);
+            if (chordPattern[k][step]) {
+              playChordNote(cell.dataset.note, +cell.dataset.octave);
+            }
+            debouncedSave();
+          });
+          
+          row.appendChild(cell);
+          chordCells.push(cell);
+        }
+        
+        grid.appendChild(row);
+      });
+      
+      $('chordUp').disabled = chordBaseNote >= 42; // up to C6
+      $('chordDown').disabled = chordBaseNote <= 21; // down to C3
+    }
+    
+    $('chordUp').addEventListener('click', () => {
+      if (chordBaseNote < 42) { chordBaseNote++; buildChordGrid(); debouncedSave(); }
+    });
+    $('chordDown').addEventListener('click', () => {
+      if (chordBaseNote > 21) { chordBaseNote--; buildChordGrid(); debouncedSave(); }
+    });
+    $('chordClear').addEventListener('click', () => {
+      chordPattern = {};
+      buildChordGrid();
+      debouncedSave();
+    });
+    
+    $('clearAllBtn').addEventListener('click', () => {
+      drumPatterns = DRUMS.map(() => Array(STEPS).fill(false));
+      drumCells.forEach(r => r.forEach(c => c.classList.remove('on')));
+      bassPattern = {};
+      buildBassGrid();
+      melPattern = {};
+      buildMelGrid();
+      chordPattern = {};
+      buildChordGrid();
+      debouncedSave();
+    });
+    
+    // TRANSPORT
+    let isPlaying = false, currentStep = 0, nextTime = 0, timerID = null;
+    const LOOKAHEAD = 0.05, INTERVAL = 20;
+    
+    function getTempo() { return clamp(+tempoEl.value, 60, 140); }
+    function getStepDur() { return 60 / getTempo() / 4; }
+    
+    function updatePlayheads(step) {
+      // Auto-follow: switch view if playhead moves outside visible range
+      if (step >= 0) {
+        const newViewStart = Math.floor(step / VISIBLE_STEPS) * VISIBLE_STEPS;
+        if (newViewStart !== viewStart) {
+          viewStart = newViewStart;
+          rebuildAllGrids();
+        }
+      }
+      
+      const visibleIndex = step - viewStart;
+      const isVisible = visibleIndex >= 0 && visibleIndex < VISIBLE_STEPS;
+      
+      drumCells.forEach(r => r.forEach(c => c.classList.remove('playhead')));
+      if (isVisible && step >= 0) {
+        drumCells.forEach(r => {
+          if (r[visibleIndex]) r[visibleIndex].classList.add('playhead');
+        });
+      }
+      
+      bassCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === step));
+      melCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === step));
+      chordCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === step));
+    }
+    
+    function scheduler() {
+      while (nextTime < ctx.currentTime + LOOKAHEAD) {
+        const step = currentStep % STEPS;
+        
+        DRUMS.forEach((drum, di) => {
+          if (drumPatterns[di][step]) playDrum(drum.key, nextTime);
+        });
+        
+        for (const key in bassPattern) {
+          if (bassPattern[key][step]) {
+            const [note, oct] = key.split('-');
+            playBass(note, +oct, nextTime);
+            break;
+          }
+        }
+        
+        for (const key in melPattern) {
+          if (melPattern[key][step]) {
+            const [note, oct] = key.split('-');
+            playMelody(note, +oct, nextTime);
+            break;
+          }
+        }
+        
+        // Play all chord notes at this step
+        let chordDelay = 0;
+        for (const key in chordPattern) {
+          if (chordPattern[key][step]) {
+            const [note, oct] = key.split('-');
+            playChordNote(note, +oct, nextTime + chordDelay * 0.008);
+            chordDelay++;
+          }
+        }
+        
+        const uiTime = (nextTime - ctx.currentTime) * 1000;
+        const uiStep = step;
+        setTimeout(() => updatePlayheads(uiStep), uiTime);
+        
+        currentStep++;
+        nextTime += getStepDur();
+      }
+      timerID = setTimeout(scheduler, INTERVAL);
+    }
+    
+    async function startPlay() {
+      await resumeAudio();
+      isPlaying = true;
+      currentStep = 0;
+      nextTime = ctx.currentTime + 0.05;
+      playBtn.disabled = true;
+      stopBtn.disabled = false;
+      scheduler();
+    }
+    
+    function stopPlay() {
+      isPlaying = false;
+      if (timerID) { clearTimeout(timerID); timerID = null; }
+      playBtn.disabled = false;
+      stopBtn.disabled = true;
+      updatePlayheads(-1);
+    }
+    
+    playBtn.addEventListener('click', startPlay);
+    stopBtn.addEventListener('click', stopPlay);
+    tempoEl.addEventListener('input', () => { tempoValEl.textContent = getTempo(); });
+    
+    // Bar navigation
+    function updateBarsLabel() {
+      const startBar = Math.floor(viewStart / 16) + 1;
+      const endBar = startBar + 1;
+      $('barsLabel').textContent = `Bars ${startBar}-${endBar}`;
+      $('barsLeft').disabled = viewStart === 0;
+      $('barsRight').disabled = viewStart >= STEPS - VISIBLE_STEPS;
+    }
+    
+    function rebuildAllGrids() {
+      buildStepNums();
+      buildDrumGrid();
+      buildBassGrid();
+      buildMelGrid();
+      buildChordGrid();
+      updateBarsLabel();
+    }
+    
+    $('barsLeft').addEventListener('click', () => {
+      if (viewStart > 0) {
+        viewStart -= 32;
+        rebuildAllGrids();
+      }
+    });
+    
+    $('barsRight').addEventListener('click', () => {
+      if (viewStart < STEPS - VISIBLE_STEPS) {
+        viewStart += 32;
+        rebuildAllGrids();
+      }
+    });
+    
+    // Print button - generates printable version
+    $('printBtn').addEventListener('click', () => {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(generatePrintHTML());
+      printWindow.document.close();
+      setTimeout(() => printWindow.print(), 500);
+    });
+    
+    function generatePrintHTML() {
+      const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+      
+      function getActiveNotes(pattern) {
+        const notes = new Set();
+        for (const key in pattern) {
+          if (pattern[key].some(v => v)) notes.add(key);
+        }
+        return Array.from(notes).sort((a, b) => {
+          const [noteA, octA] = a.split('-');
+          const [noteB, octB] = b.split('-');
+          return (NOTE_NAMES.indexOf(noteB) + parseInt(octB) * 7) - (NOTE_NAMES.indexOf(noteA) + parseInt(octA) * 7);
+        });
+      }
+      
+      function createGrid(title, labels, getIsOn) {
+        let html = '<div style="margin-bottom:15px"><div style="font-size:12px;font-weight:bold;margin-bottom:3px">' + title + '</div>';
+        html += '<div style="display:flex;margin-left:30px;margin-bottom:2px">';
+        for (let b = 0; b < 4; b++) html += '<span style="font-size:9px;font-weight:bold;width:' + (18*16) + 'px">' + (b+1) + '</span>';
+        html += '</div><div style="display:flex"><div style="display:flex;flex-direction:column;margin-right:3px">';
+        labels.forEach(l => { html += '<div style="height:14px;font-size:9px;display:flex;align-items:center;justify-content:flex-end;padding-right:3px">' + l + '</div>'; });
+        html += '</div><div style="display:flex;flex-direction:column;border:1px solid black">';
+        labels.forEach((label, rowIdx) => {
+          html += '<div style="display:flex">';
+          for (let s = 0; s < STEPS; s++) {
+            const isOn = getIsOn(rowIdx, s, label);
+            const isBar = s % 16 === 0;
+            html += '<div style="width:18px;height:14px;border:1px solid #999;background:' + (isOn ? '#ccc' : 'white') + (isBar ? ';border-left:2px solid black' : '') + '"></div>';
+          }
+          html += '</div>';
+        });
+        html += '</div></div></div>';
+        return html;
+      }
+      
+      let content = '';
+      content += createGrid('DRUMS', ['Kick', 'Snare', 'HiHat', 'Clap'], (r, s) => drumPatterns[r][s]);
+      
+      const bassNotes = getActiveNotes(bassPattern);
+      if (bassNotes.length > 0) {
+        content += createGrid('BASS', bassNotes.map(k => k.replace('-', '')), (r, s) => bassPattern[bassNotes[r]] && bassPattern[bassNotes[r]][s]);
+      }
+      
+      const melNotes = getActiveNotes(melPattern);
+      if (melNotes.length > 0) {
+        content += createGrid('MELODY', melNotes.map(k => k.replace('-', '')), (r, s) => melPattern[melNotes[r]] && melPattern[melNotes[r]][s]);
+      }
+      
+      const chordNotes = getActiveNotes(chordPattern);
+      if (chordNotes.length > 0) {
+        content += createGrid('CHORDS', chordNotes.map(k => k.replace('-', '')), (r, s) => chordPattern[chordNotes[r]] && chordPattern[chordNotes[r]][s]);
+      }
+      
+      return '<!DOCTYPE html><html><head><title>Riff Player - Print</title><style>@media print{@page{margin:0.5in}}body{font-family:Arial,sans-serif;padding:20px;background:white;color:black}</style></head><body><h1 style="font-size:18px;margin-bottom:5px">Riff Player - Key of C Major</h1><div style="font-size:11px;margin-bottom:15px;color:#333">4 Bars | 16 steps per bar | Name: _________________ Date: _________</div>' + content + '<div style="margin-top:20px;font-size:10px"><span style="margin-right:15px"><span style="display:inline-block;width:12px;height:12px;border:1px solid black;background:#ccc;vertical-align:middle;margin-right:3px"></span> = Play note</span><span><span style="display:inline-block;width:12px;height:12px;border:1px solid black;background:white;vertical-align:middle;margin-right:3px"></span> = Rest</span></div></body></html>';
+    }
+    
+    const keyMap = { a:'C', s:'D', d:'E', f:'F', g:'G', h:'A', j:'B' };
+    document.addEventListener('keydown', async (e) => {
+      if (e.repeat) return;
+      const note = keyMap[e.key.toLowerCase()];
+      if (note) {
+        await resumeAudio();
+        const octave = Math.floor(melBaseNote / 7);
+        playMelody(note, octave);
+      }
+      if (e.key === ' ') { e.preventDefault(); isPlaying ? stopPlay() : startPlay(); }
+    });
+    
+    // Auto save
+    const SAVE_KEY = 'riffPlayerState';
+    
+    function saveState() {
+      const state = {
+        drumPatterns,
+        bassPattern,
+        bassBaseNote,
+        melPattern,
+        melBaseNote,
+        chordPattern,
+        chordBaseNote,
+        viewStart,
+        tempo: +tempoEl.value,
+        volume: +masterVolEl.value,
+        reverb: +reverbMixEl.value
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    }
+    
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(SAVE_KEY);
+        if (!saved) return;
+        const state = JSON.parse(saved);
+        
+        if (state.drumPatterns) drumPatterns = state.drumPatterns;
+        if (state.bassPattern) bassPattern = state.bassPattern;
+        if (state.bassBaseNote !== undefined) bassBaseNote = state.bassBaseNote;
+        if (state.melPattern) melPattern = state.melPattern;
+        if (state.melBaseNote !== undefined) melBaseNote = state.melBaseNote;
+        if (state.chordPattern && typeof state.chordPattern === 'object' && !Array.isArray(state.chordPattern)) {
+          chordPattern = state.chordPattern;
+        }
+        if (state.chordBaseNote !== undefined) chordBaseNote = state.chordBaseNote;
+        if (state.viewStart !== undefined) viewStart = state.viewStart;
+        if (state.tempo) { tempoEl.value = state.tempo; tempoValEl.textContent = state.tempo; }
+        if (state.volume !== undefined) masterVolEl.value = state.volume;
+        if (state.reverb !== undefined) reverbMixEl.value = state.reverb;
+      } catch (e) {
+        console.warn('Failed to load saved state:', e);
+      }
+    }
+    
+    function debounce(fn, delay) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    }
+    
+    const debouncedSave = debounce(saveState, 500);
+    
+    // Watch for changes
+    const observer = new MutationObserver(debouncedSave);
+    tempoEl.addEventListener('input', debouncedSave);
+    masterVolEl.addEventListener('input', debouncedSave);
+    reverbMixEl.addEventListener('input', debouncedSave);
+    
+    // Init
+    loadState();
+    buildStepNums();
+    buildDrumGrid();
+    buildBassGrid();
+    buildMelGrid();
+    buildChordGrid();
+    updateBarsLabel();
+    tempoValEl.textContent = getTempo();
+  })();
+  </script>
+</body>
+</html>
