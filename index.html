@@ -129,7 +129,7 @@
       font-weight: 700;
       color: #666666;
     }
-    .step-num.bar { color: #cccccc; font-weight: 800; }
+    .step-num.bar { color: #cccccc; font-weight: 800; font-size: 11px; }
     
     .grid-area {
       flex: 1;
@@ -206,7 +206,8 @@
     .cell.on.hat { background: #2563eb !important; }
     .cell.on.clap { background: #d97706 !important; }
     .cell.on.bass { background: #7f1d1d !important; }
-    .cell.on.melody { background: #1e40af !important; }
+    .cell.on.riff { background: #1e40af !important; }
+    .cell.on.melody { background: #059669 !important; }
     .cell.on.chord { background: #6b21a8 !important; }
     
     .row-label .dot {
@@ -269,17 +270,16 @@
   </header>
   
   <div class="main">
-    <!-- DRUMS -->
-    <div class="section" style="flex: 0.7;">
+    <!-- DRUMS - 1 bar only, loops -->
+    <div class="section" style="flex: 0.6;">
       <div class="section-header">
         <div class="section-label">DRUMS</div>
         <div class="section-controls">
           <button class="sm" id="drumClear">Clear</button>
-          <button class="sm" id="drumPreset">Beat</button>
         </div>
       </div>
       <div class="grid-wrap">
-        <div class="step-nums" id="stepNums"></div>
+        <div class="step-nums" id="drumStepNums"></div>
         <div class="grid-area">
           <div class="labels-column">
             <div class="labels-list" id="drumLabels"></div>
@@ -292,7 +292,7 @@
     <div class="divider"></div>
     
     <!-- BASS -->
-    <div class="section" style="flex: 1.2;">
+    <div class="section" style="flex: 1;">
       <div class="section-header">
         <div class="section-label">BASS</div>
         <div class="section-controls">
@@ -302,6 +302,7 @@
         </div>
       </div>
       <div class="grid-wrap">
+        <div class="step-nums" id="stepNums"></div>
         <div class="grid-area">
           <div class="labels-column">
             <div class="labels-list" id="bassLabels"></div>
@@ -313,8 +314,30 @@
     
     <div class="divider"></div>
     
-    <!-- MELODY -->
-    <div class="section" style="flex: 1.2;">
+    <!-- RIFF (formerly MELODY) -->
+    <div class="section" style="flex: 1;">
+      <div class="section-header">
+        <div class="section-label">RIFF</div>
+        <div class="section-controls">
+          <button class="sm" id="riffDown">▼</button>
+          <button class="sm" id="riffUp">▲</button>
+          <button class="sm" id="riffClear">Clear</button>
+        </div>
+      </div>
+      <div class="grid-wrap">
+        <div class="grid-area">
+          <div class="labels-column">
+            <div class="labels-list" id="riffLabels"></div>
+          </div>
+          <div class="grid" id="riffGrid"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- MELODY (new, 8 bars) -->
+    <div class="section" style="flex: 1;">
       <div class="section-header">
         <div class="section-label">MELODY</div>
         <div class="section-controls">
@@ -324,6 +347,7 @@
         </div>
       </div>
       <div class="grid-wrap">
+        <div class="step-nums" id="melStepNums"></div>
         <div class="grid-area">
           <div class="labels-column">
             <div class="labels-list" id="melLabels"></div>
@@ -336,7 +360,7 @@
     <div class="divider"></div>
     
     <!-- CHORDS -->
-    <div class="section" style="flex: 1;">
+    <div class="section" style="flex: 0.9;">
       <div class="section-header">
         <div class="section-label">CHORDS</div>
         <div class="section-controls">
@@ -365,15 +389,17 @@
     const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
     const $ = id => document.getElementById(id);
     
-    const STEPS = 64; // 4 bars x 16 steps per bar
+    const STEPS = 64; // 4 bars for bass/riff/chords
+    const MELODY_STEPS = 128; // 8 bars for melody
+    const DRUM_STEPS = 16; // 1 bar for drums (loops)
     const VISIBLE_STEPS = 32; // 2 bars visible at a time
-    let viewStart = 0; // Which step to start viewing from (0 or 32)
+    let viewStart = 0; // Which step to start viewing from
     
     const tempoEl = $('tempo'), tempoValEl = $('tempoVal');
     const masterVolEl = $('masterVol'), reverbMixEl = $('reverbMix');
     const playBtn = $('playBtn'), stopBtn = $('stopBtn');
     
-    let ctx = null, master = null, drumBus = null, bassBus = null, melodyBus = null, chordBus = null;
+    let ctx = null, master = null, drumBus = null, bassBus = null, riffBus = null, melodyBus = null, chordBus = null;
     let convolver = null, reverbWet = null, reverbDry = null, limiter = null;
     
     function createReverbIR(duration, decay) {
@@ -403,6 +429,7 @@
       
       drumBus = ctx.createGain(); drumBus.gain.value = 0.8;
       bassBus = ctx.createGain(); bassBus.gain.value = 0.6;
+      riffBus = ctx.createGain(); riffBus.gain.value = 0.5;
       melodyBus = ctx.createGain(); melodyBus.gain.value = 0.5;
       chordBus = ctx.createGain(); chordBus.gain.value = 0.45;
       
@@ -419,6 +446,7 @@
       
       drumBus.connect(preMaster);
       bassBus.connect(preMaster);
+      riffBus.connect(preMaster);
       melodyBus.connect(preMaster);
       chordBus.connect(preMaster);
       
@@ -547,7 +575,7 @@
       o1.stop(time + 0.4); o2.stop(time + 0.4);
     }
     
-    function playMelody(note, octave, t) {
+    function playRiff(note, octave, t) {
       if (!ctx) return;
       const time = t ?? ctx.currentTime;
       const freq = noteFreq(note, octave);
@@ -569,9 +597,35 @@
       g.gain.linearRampToValueAtTime(0.4, time + 0.005);
       g.gain.setTargetAtTime(0.001, time + 0.2, 0.1);
       
-      o1.connect(f); o2.connect(f); f.connect(g); g.connect(melodyBus);
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(riffBus);
       o1.start(time); o2.start(time);
       o1.stop(time + 0.5); o2.stop(time + 0.5);
+    }
+    
+    function playMelody(note, octave, t) {
+      if (!ctx) return;
+      const time = t ?? ctx.currentTime;
+      const freq = noteFreq(note, octave);
+      
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+      const g = ctx.createGain(), f = ctx.createBiquadFilter();
+      
+      o1.type = 'triangle'; o2.type = 'sine';
+      o1.frequency.setValueAtTime(freq, time);
+      o2.frequency.setValueAtTime(freq * 2, time); // octave up for brightness
+      
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(3000, time);
+      f.frequency.exponentialRampToValueAtTime(800, time + 0.15);
+      f.Q.value = 0.5;
+      
+      g.gain.setValueAtTime(0, time);
+      g.gain.linearRampToValueAtTime(0.35, time + 0.01);
+      g.gain.setTargetAtTime(0.001, time + 0.3, 0.15);
+      
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(melodyBus);
+      o1.start(time); o2.start(time);
+      o1.stop(time + 0.6); o2.stop(time + 0.6);
     }
     
     function playChordNote(note, octave, t) {
@@ -605,20 +659,75 @@
       return 'beat' + (beat + halfBar * 4);
     }
     
-    function buildStepNums() {
-      const nums = $('stepNums');
+    // Beat class for drums (1 bar only)
+    function getDrumBeatClass(step) {
+      const beat = Math.floor(step / 4) % 4;
+      return 'beat' + beat;
+    }
+    
+    // Step numbers for drums (1 bar = 16 steps)
+    function buildDrumStepNums() {
+      const nums = $('drumStepNums');
       nums.innerHTML = '';
-      for (let i = 0; i < VISIBLE_STEPS; i++) {
-        const s = viewStart + i;
+      for (let i = 0; i < DRUM_STEPS; i++) {
         const n = document.createElement('div');
-        const isBarStart = s % 16 === 0;
-        n.className = 'step-num' + (isBarStart ? ' bar' : '');
-        n.textContent = isBarStart ? (Math.floor(s / 16) + 1) : '';
+        const beatInBar = Math.floor(i / 4) + 1;
+        const subBeat = i % 4;
+        const isBeatStart = subBeat === 0;
+        n.className = 'step-num' + (isBeatStart ? ' bar' : '');
+        n.textContent = isBeatStart ? beatInBar.toString() : '';
         nums.appendChild(n);
       }
     }
     
-    // DRUMS
+    // Step numbers for bass/riff/chords (loops every 4 bars)
+    function buildStepNums() {
+      const nums = $('stepNums');
+      nums.innerHTML = '';
+      const loopedViewStart = viewStart % STEPS; // Loop every 4 bars
+      for (let i = 0; i < VISIBLE_STEPS; i++) {
+        const s = loopedViewStart + i;
+        const n = document.createElement('div');
+        const bar = Math.floor(s / 16) % 4 + 1; // Bars 1-4
+        const beatInBar = Math.floor((s % 16) / 4) + 1;
+        const subBeat = s % 4;
+        const isBeatStart = subBeat === 0;
+        n.className = 'step-num' + (isBeatStart ? ' bar' : '');
+        if (isBeatStart) {
+          if (beatInBar === 1) {
+            n.textContent = bar.toString();
+          } else {
+            n.textContent = bar + '.' + beatInBar;
+          }
+        }
+        nums.appendChild(n);
+      }
+    }
+    
+    // Step numbers for melody (8 bars)
+    function buildMelStepNums() {
+      const nums = $('melStepNums');
+      nums.innerHTML = '';
+      for (let i = 0; i < VISIBLE_STEPS; i++) {
+        const s = viewStart + i;
+        const n = document.createElement('div');
+        const bar = Math.floor(s / 16) + 1; // Bars 1-8
+        const beatInBar = Math.floor((s % 16) / 4) + 1;
+        const subBeat = s % 4;
+        const isBeatStart = subBeat === 0;
+        n.className = 'step-num' + (isBeatStart ? ' bar' : '');
+        if (isBeatStart) {
+          if (beatInBar === 1) {
+            n.textContent = bar.toString();
+          } else {
+            n.textContent = bar + '.' + beatInBar;
+          }
+        }
+        nums.appendChild(n);
+      }
+    }
+    
+    // DRUMS - 1 bar only (16 steps)
     const DRUMS = [
       { name: 'Kick', key: 'kick', color: '#dc2626' },
       { name: 'Snare', key: 'snare', color: '#16a34a' },
@@ -626,7 +735,7 @@
       { name: 'Clap', key: 'clap', color: '#d97706' }
     ];
     
-    let drumPatterns = DRUMS.map(() => Array(STEPS).fill(false));
+    let drumPatterns = DRUMS.map(() => Array(DRUM_STEPS).fill(false));
     let drumCells = [];
     
     function buildDrumGrid() {
@@ -646,11 +755,10 @@
         row.className = 'grid-row';
         const rowCells = [];
         
-        for (let i = 0; i < VISIBLE_STEPS; i++) {
-          const s = viewStart + i;
+        for (let s = 0; s < DRUM_STEPS; s++) {
           const cell = document.createElement('div');
-          cell.className = 'cell ' + drum.key + ' ' + getBeatClass(s);
-          if (s % 16 === 0) cell.classList.add('bar');
+          cell.className = 'cell ' + drum.key + ' ' + getDrumBeatClass(s);
+          if (s === 0) cell.classList.add('bar');
           if (drumPatterns[di][s]) cell.classList.add('on');
           
           cell.dataset.step = s;
@@ -677,29 +785,14 @@
     }
     
     $('drumClear').addEventListener('click', () => {
-      drumPatterns = DRUMS.map(() => Array(STEPS).fill(false));
+      drumPatterns = DRUMS.map(() => Array(DRUM_STEPS).fill(false));
       drumCells.forEach(r => r.forEach(c => c.classList.remove('on')));
       debouncedSave();
     });
     
-    $('drumPreset').addEventListener('click', () => {
-      const k = [], s = [], h = [], c = [];
-      for (let i = 0; i < STEPS; i++) {
-        k.push(i % 4 === 0);
-        s.push(i % 8 === 4);
-        h.push(i % 2 === 0);
-        c.push(i === 15 || i === 31);
-      }
-      drumPatterns = [k, s, h, c];
-      DRUMS.forEach((_, di) => {
-        drumCells[di].forEach((c, s) => c.classList.toggle('on', drumPatterns[di][s]));
-      });
-      debouncedSave();
-    });
-    
-    // BASS - note-based scrolling
+    // BASS - note-based scrolling (4 bars)
     let bassPattern = {};
-    let bassBaseNote = 14; // C2 = index 14 (C0=0, D0=1, ... C1=7, ... C2=14)
+    let bassBaseNote = 14; // C2
     let bassCells = [];
     
     function noteFromIndex(idx) {
@@ -724,6 +817,7 @@
       bassCells = [];
       
       const visibleNotes = getBassVisibleNotes();
+      const bassViewStart = viewStart % STEPS; // Loop every 4 bars
       
       visibleNotes.forEach(noteInfo => {
         const label = document.createElement('div');
@@ -738,16 +832,18 @@
         if (!bassPattern[key]) bassPattern[key] = Array(STEPS).fill(false);
         
         for (let i = 0; i < VISIBLE_STEPS; i++) {
-          const s = viewStart + i;
+          const s = bassViewStart + i;
+          const actualStep = s % STEPS; // Wrap around
           const cell = document.createElement('div');
           cell.className = 'cell bass ' + getBeatClass(s);
           if (s % 16 === 0) cell.classList.add('bar');
-          if (bassPattern[key][s]) cell.classList.add('on');
+          if (bassPattern[key][actualStep]) cell.classList.add('on');
           
           cell.dataset.key = key;
           cell.dataset.note = noteInfo.name;
           cell.dataset.octave = noteInfo.octave;
-          cell.dataset.step = s;
+          cell.dataset.step = actualStep;
+          cell.dataset.viewStep = s;
           
           cell.addEventListener('pointerdown', async (e) => {
             e.preventDefault();
@@ -777,8 +873,8 @@
         grid.appendChild(row);
       });
       
-      $('bassUp').disabled = bassBaseNote >= 28; // up to C4
-      $('bassDown').disabled = bassBaseNote <= 7; // down to C1
+      $('bassUp').disabled = bassBaseNote >= 28;
+      $('bassDown').disabled = bassBaseNote <= 7;
     }
     
     $('bassUp').addEventListener('click', () => {
@@ -793,9 +889,102 @@
       debouncedSave();
     });
     
-    // MELODY - note-based scrolling
+    // RIFF - note-based scrolling (4 bars)
+    let riffPattern = {};
+    let riffBaseNote = 28; // C4
+    let riffCells = [];
+    
+    function getRiffVisibleNotes() {
+      const notes = [];
+      for (let i = 6; i >= 0; i--) {
+        notes.push(noteFromIndex(riffBaseNote + i));
+      }
+      return notes;
+    }
+    
+    function buildRiffGrid() {
+      const labels = $('riffLabels');
+      const grid = $('riffGrid');
+      labels.innerHTML = '';
+      grid.innerHTML = '';
+      riffCells = [];
+      
+      const visibleNotes = getRiffVisibleNotes();
+      const riffViewStart = viewStart % STEPS; // Loop every 4 bars
+      
+      visibleNotes.forEach(noteInfo => {
+        const label = document.createElement('div');
+        label.className = 'row-label';
+        label.textContent = noteInfo.label;
+        labels.appendChild(label);
+        
+        const row = document.createElement('div');
+        row.className = 'grid-row';
+        
+        const key = noteInfo.name + '-' + noteInfo.octave;
+        if (!riffPattern[key]) riffPattern[key] = Array(STEPS).fill(false);
+        
+        for (let i = 0; i < VISIBLE_STEPS; i++) {
+          const s = riffViewStart + i;
+          const actualStep = s % STEPS; // Wrap around
+          const cell = document.createElement('div');
+          cell.className = 'cell riff ' + getBeatClass(s);
+          if (s % 16 === 0) cell.classList.add('bar');
+          if (riffPattern[key][actualStep]) cell.classList.add('on');
+          
+          cell.dataset.key = key;
+          cell.dataset.note = noteInfo.name;
+          cell.dataset.octave = noteInfo.octave;
+          cell.dataset.step = actualStep;
+          cell.dataset.viewStep = s;
+          
+          cell.addEventListener('pointerdown', async (e) => {
+            e.preventDefault();
+            await resumeAudio();
+            const step = +cell.dataset.step;
+            const k = cell.dataset.key;
+            
+            riffCells.forEach(c => {
+              if (+c.dataset.step === step && c.dataset.key !== k) {
+                riffPattern[c.dataset.key][step] = false;
+                c.classList.remove('on');
+              }
+            });
+            
+            riffPattern[k][step] = !riffPattern[k][step];
+            cell.classList.toggle('on', riffPattern[k][step]);
+            if (riffPattern[k][step]) {
+              playRiff(cell.dataset.note, +cell.dataset.octave);
+            }
+            debouncedSave();
+          });
+          
+          row.appendChild(cell);
+          riffCells.push(cell);
+        }
+        
+        grid.appendChild(row);
+      });
+      
+      $('riffUp').disabled = riffBaseNote >= 42;
+      $('riffDown').disabled = riffBaseNote <= 21;
+    }
+    
+    $('riffUp').addEventListener('click', () => {
+      if (riffBaseNote < 42) { riffBaseNote++; buildRiffGrid(); debouncedSave(); }
+    });
+    $('riffDown').addEventListener('click', () => {
+      if (riffBaseNote > 21) { riffBaseNote--; buildRiffGrid(); debouncedSave(); }
+    });
+    $('riffClear').addEventListener('click', () => {
+      riffPattern = {};
+      buildRiffGrid();
+      debouncedSave();
+    });
+    
+    // MELODY - note-based scrolling (8 bars)
     let melPattern = {};
-    let melBaseNote = 28; // C4 = index 28
+    let melBaseNote = 35; // C5
     let melCells = [];
     
     function getMelVisibleNotes() {
@@ -825,14 +1014,14 @@
         row.className = 'grid-row';
         
         const key = noteInfo.name + '-' + noteInfo.octave;
-        if (!melPattern[key]) melPattern[key] = Array(STEPS).fill(false);
+        if (!melPattern[key]) melPattern[key] = Array(MELODY_STEPS).fill(false);
         
         for (let i = 0; i < VISIBLE_STEPS; i++) {
           const s = viewStart + i;
           const cell = document.createElement('div');
           cell.className = 'cell melody ' + getBeatClass(s);
           if (s % 16 === 0) cell.classList.add('bar');
-          if (melPattern[key][s]) cell.classList.add('on');
+          if (s < MELODY_STEPS && melPattern[key][s]) cell.classList.add('on');
           
           cell.dataset.key = key;
           cell.dataset.note = noteInfo.name;
@@ -843,6 +1032,7 @@
             e.preventDefault();
             await resumeAudio();
             const step = +cell.dataset.step;
+            if (step >= MELODY_STEPS) return; // Beyond 8 bars
             const k = cell.dataset.key;
             
             melCells.forEach(c => {
@@ -867,8 +1057,8 @@
         grid.appendChild(row);
       });
       
-      $('melUp').disabled = melBaseNote >= 42; // up to C6
-      $('melDown').disabled = melBaseNote <= 21; // down to C3
+      $('melUp').disabled = melBaseNote >= 42;
+      $('melDown').disabled = melBaseNote <= 21;
     }
     
     $('melUp').addEventListener('click', () => {
@@ -883,9 +1073,9 @@
       debouncedSave();
     });
     
-    // CHORDS - note-based, polyphonic (multiple notes per step allowed)
-    let chordPattern = {}; // key -> Array(STEPS) of booleans
-    let chordBaseNote = 28; // C4 = index 28
+    // CHORDS - note-based, polyphonic (4 bars)
+    let chordPattern = {};
+    let chordBaseNote = 28; // C4
     let chordCells = [];
     
     function getChordVisibleNotes() {
@@ -904,6 +1094,7 @@
       chordCells = [];
       
       const visibleNotes = getChordVisibleNotes();
+      const chordViewStart = viewStart % STEPS; // Loop every 4 bars
       
       visibleNotes.forEach(noteInfo => {
         const label = document.createElement('div');
@@ -918,16 +1109,18 @@
         if (!chordPattern[key]) chordPattern[key] = Array(STEPS).fill(false);
         
         for (let i = 0; i < VISIBLE_STEPS; i++) {
-          const s = viewStart + i;
+          const s = chordViewStart + i;
+          const actualStep = s % STEPS; // Wrap around
           const cell = document.createElement('div');
           cell.className = 'cell chord ' + getBeatClass(s);
           if (s % 16 === 0) cell.classList.add('bar');
-          if (chordPattern[key][s]) cell.classList.add('on');
+          if (chordPattern[key][actualStep]) cell.classList.add('on');
           
           cell.dataset.key = key;
           cell.dataset.note = noteInfo.name;
           cell.dataset.octave = noteInfo.octave;
-          cell.dataset.step = s;
+          cell.dataset.step = actualStep;
+          cell.dataset.viewStep = s;
           
           cell.addEventListener('pointerdown', async (e) => {
             e.preventDefault();
@@ -935,7 +1128,6 @@
             const step = +cell.dataset.step;
             const k = cell.dataset.key;
             
-            // Toggle this note (allow multiple notes per step)
             chordPattern[k][step] = !chordPattern[k][step];
             cell.classList.toggle('on', chordPattern[k][step]);
             if (chordPattern[k][step]) {
@@ -951,8 +1143,8 @@
         grid.appendChild(row);
       });
       
-      $('chordUp').disabled = chordBaseNote >= 42; // up to C6
-      $('chordDown').disabled = chordBaseNote <= 21; // down to C3
+      $('chordUp').disabled = chordBaseNote >= 42;
+      $('chordDown').disabled = chordBaseNote <= 21;
     }
     
     $('chordUp').addEventListener('click', () => {
@@ -968,10 +1160,12 @@
     });
     
     $('clearAllBtn').addEventListener('click', () => {
-      drumPatterns = DRUMS.map(() => Array(STEPS).fill(false));
+      drumPatterns = DRUMS.map(() => Array(DRUM_STEPS).fill(false));
       drumCells.forEach(r => r.forEach(c => c.classList.remove('on')));
       bassPattern = {};
       buildBassGrid();
+      riffPattern = {};
+      buildRiffGrid();
       melPattern = {};
       buildMelGrid();
       chordPattern = {};
@@ -987,46 +1181,64 @@
     function getStepDur() { return 60 / getTempo() / 4; }
     
     function updatePlayheads(step) {
-      // Auto-follow: switch view if playhead moves outside visible range
+      // Auto-follow view based on melody (8 bars)
       if (step >= 0) {
         const newViewStart = Math.floor(step / VISIBLE_STEPS) * VISIBLE_STEPS;
-        if (newViewStart !== viewStart) {
+        if (newViewStart !== viewStart && newViewStart < MELODY_STEPS) {
           viewStart = newViewStart;
-          rebuildAllGrids();
+          rebuildOtherGrids();
         }
       }
       
-      const visibleIndex = step - viewStart;
-      const isVisible = visibleIndex >= 0 && visibleIndex < VISIBLE_STEPS;
-      
+      // Drum playhead - loops every 16 steps
+      const drumStep = step >= 0 ? step % DRUM_STEPS : -1;
       drumCells.forEach(r => r.forEach(c => c.classList.remove('playhead')));
-      if (isVisible && step >= 0) {
+      if (drumStep >= 0) {
         drumCells.forEach(r => {
-          if (r[visibleIndex]) r[visibleIndex].classList.add('playhead');
+          if (r[drumStep]) r[drumStep].classList.add('playhead');
         });
       }
       
-      bassCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === step));
+      // Bass/Riff/Chords - loop every 64 steps (4 bars)
+      const bassStep = step >= 0 ? step % STEPS : -1;
+      bassCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === bassStep));
+      riffCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === bassStep));
+      chordCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === bassStep));
+      
+      // Melody - full 128 steps (8 bars)
       melCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === step));
-      chordCells.forEach(c => c.classList.toggle('playhead', +c.dataset.step === step));
     }
     
     function scheduler() {
       while (nextTime < ctx.currentTime + LOOKAHEAD) {
-        const step = currentStep % STEPS;
+        const step = currentStep % MELODY_STEPS; // Full 128-step cycle for melody
+        const drumStep = currentStep % DRUM_STEPS; // 16-step cycle for drums
+        const bassStep = currentStep % STEPS; // 64-step cycle for bass/riff/chords
         
+        // Drums loop every 16 steps
         DRUMS.forEach((drum, di) => {
-          if (drumPatterns[di][step]) playDrum(drum.key, nextTime);
+          if (drumPatterns[di][drumStep]) playDrum(drum.key, nextTime);
         });
         
+        // Bass loops every 64 steps
         for (const key in bassPattern) {
-          if (bassPattern[key][step]) {
+          if (bassPattern[key][bassStep]) {
             const [note, oct] = key.split('-');
             playBass(note, +oct, nextTime);
             break;
           }
         }
         
+        // Riff loops every 64 steps
+        for (const key in riffPattern) {
+          if (riffPattern[key][bassStep]) {
+            const [note, oct] = key.split('-');
+            playRiff(note, +oct, nextTime);
+            break;
+          }
+        }
+        
+        // Melody plays full 128 steps
         for (const key in melPattern) {
           if (melPattern[key][step]) {
             const [note, oct] = key.split('-');
@@ -1035,10 +1247,10 @@
           }
         }
         
-        // Play all chord notes at this step
+        // Chords loop every 64 steps
         let chordDelay = 0;
         for (const key in chordPattern) {
-          if (chordPattern[key][step]) {
+          if (chordPattern[key][bassStep]) {
             const [note, oct] = key.split('-');
             playChordNote(note, +oct, nextTime + chordDelay * 0.008);
             chordDelay++;
@@ -1077,39 +1289,46 @@
     stopBtn.addEventListener('click', stopPlay);
     tempoEl.addEventListener('input', () => { tempoValEl.textContent = getTempo(); });
     
-    // Bar navigation
+    // Bar navigation (shows melody bars 1-8)
     function updateBarsLabel() {
       const startBar = Math.floor(viewStart / 16) + 1;
       const endBar = startBar + 1;
       $('barsLabel').textContent = `Bars ${startBar}-${endBar}`;
       $('barsLeft').disabled = viewStart === 0;
-      $('barsRight').disabled = viewStart >= STEPS - VISIBLE_STEPS;
+      $('barsRight').disabled = viewStart >= MELODY_STEPS - VISIBLE_STEPS;
     }
     
-    function rebuildAllGrids() {
+    function rebuildOtherGrids() {
       buildStepNums();
-      buildDrumGrid();
+      buildMelStepNums();
       buildBassGrid();
+      buildRiffGrid();
       buildMelGrid();
       buildChordGrid();
       updateBarsLabel();
     }
     
+    function rebuildAllGrids() {
+      buildDrumStepNums();
+      buildDrumGrid();
+      rebuildOtherGrids();
+    }
+    
     $('barsLeft').addEventListener('click', () => {
       if (viewStart > 0) {
         viewStart -= 32;
-        rebuildAllGrids();
+        rebuildOtherGrids();
       }
     });
     
     $('barsRight').addEventListener('click', () => {
-      if (viewStart < STEPS - VISIBLE_STEPS) {
+      if (viewStart < MELODY_STEPS - VISIBLE_STEPS) {
         viewStart += 32;
-        rebuildAllGrids();
+        rebuildOtherGrids();
       }
     });
     
-    // Print button - generates printable version
+    // Print button
     $('printBtn').addEventListener('click', () => {
       const printWindow = window.open('', '_blank');
       printWindow.document.write(generatePrintHTML());
@@ -1119,6 +1338,8 @@
     
     function generatePrintHTML() {
       const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+      const CELL_WIDTH = 18;
+      const LABEL_WIDTH = 35;
       
       function getActiveNotes(pattern) {
         const notes = new Set();
@@ -1132,45 +1353,94 @@
         });
       }
       
-      function createGrid(title, labels, getIsOn) {
-        let html = '<div style="margin-bottom:15px"><div style="font-size:12px;font-weight:bold;margin-bottom:3px">' + title + '</div>';
-        html += '<div style="display:flex;margin-left:30px;margin-bottom:2px">';
-        for (let b = 0; b < 4; b++) html += '<span style="font-size:9px;font-weight:bold;width:' + (18*16) + 'px">' + (b+1) + '</span>';
-        html += '</div><div style="display:flex"><div style="display:flex;flex-direction:column;margin-right:3px">';
-        labels.forEach(l => { html += '<div style="height:14px;font-size:9px;display:flex;align-items:center;justify-content:flex-end;padding-right:3px">' + l + '</div>'; });
-        html += '</div><div style="display:flex;flex-direction:column;border:1px solid black">';
-        labels.forEach((label, rowIdx) => {
-          html += '<div style="display:flex">';
-          for (let s = 0; s < STEPS; s++) {
-            const isOn = getIsOn(rowIdx, s, label);
-            const isBar = s % 16 === 0;
-            html += '<div style="width:18px;height:14px;border:1px solid #999;background:' + (isOn ? '#ccc' : 'white') + (isBar ? ';border-left:2px solid black' : '') + '"></div>';
+      // Generate beat labels: 1, 1.2, 1.3, 1.4, 2, 2.2, etc.
+      function getBeatLabel(step) {
+        const bar = Math.floor(step / 16) + 1;
+        const beatInBar = Math.floor((step % 16) / 4) + 1;
+        if (beatInBar === 1) return { text: bar.toString(), isMain: true };
+        return { text: bar + '.' + beatInBar, isMain: false };
+      }
+      
+      function createDrumGrid() {
+        let html = '<div style="margin-bottom:15px"><div style="font-size:12px;font-weight:bold;margin-bottom:3px">DRUMS</div>';
+        html += '<table style="border-collapse:collapse;">';
+        // Beat numbers row
+        html += '<tr><td style="width:' + LABEL_WIDTH + 'px;border:none;"></td>';
+        for (let s = 0; s < DRUM_STEPS; s++) {
+          if (s % 4 === 0) {
+            const beat = getBeatLabel(s);
+            const color = beat.isMain ? '#000' : '#999';
+            const weight = beat.isMain ? 'bold' : 'normal';
+            html += '<td colspan="4" style="font-size:8px;font-weight:' + weight + ';color:' + color + ';border:none;padding-left:1px;">' + beat.text + '</td>';
           }
-          html += '</div>';
+        }
+        html += '</tr>';
+        // Grid rows
+        ['Kick', 'Snare', 'HiHat', 'Clap'].forEach((l, rowIdx) => {
+          html += '<tr><td style="width:' + LABEL_WIDTH + 'px;font-size:9px;text-align:right;padding-right:3px;border:none;">' + l + '</td>';
+          for (let s = 0; s < DRUM_STEPS; s++) {
+            const isOn = drumPatterns[rowIdx][s];
+            const isBeatStart = s % 4 === 0;
+            html += '<td style="width:' + CELL_WIDTH + 'px;height:14px;border:1px solid #999;background:' + (isOn ? '#bbb' : 'white') + (isBeatStart ? ';border-left:2px solid black' : '') + '"></td>';
+          }
+          html += '</tr>';
         });
-        html += '</div></div></div>';
+        html += '</table></div>';
+        return html;
+      }
+      
+      function createGrid(title, labels, getIsOn, steps) {
+        let html = '<div style="margin-bottom:15px"><div style="font-size:12px;font-weight:bold;margin-bottom:3px">' + title + '</div>';
+        html += '<table style="border-collapse:collapse;">';
+        // Beat numbers row
+        html += '<tr><td style="width:' + LABEL_WIDTH + 'px;border:none;"></td>';
+        for (let s = 0; s < steps; s++) {
+          if (s % 4 === 0) {
+            const beat = getBeatLabel(s);
+            const color = beat.isMain ? '#000' : '#999';
+            const weight = beat.isMain ? 'bold' : 'normal';
+            html += '<td colspan="4" style="font-size:8px;font-weight:' + weight + ';color:' + color + ';border:none;padding-left:1px;">' + beat.text + '</td>';
+          }
+        }
+        html += '</tr>';
+        // Grid rows
+        labels.forEach((label, rowIdx) => {
+          html += '<tr><td style="width:' + LABEL_WIDTH + 'px;font-size:9px;text-align:right;padding-right:3px;border:none;">' + label + '</td>';
+          for (let s = 0; s < steps; s++) {
+            const isOn = getIsOn(rowIdx, s, label);
+            const isBeatStart = s % 4 === 0;
+            html += '<td style="width:' + CELL_WIDTH + 'px;height:14px;border:1px solid #999;background:' + (isOn ? '#bbb' : 'white') + (isBeatStart ? ';border-left:2px solid black' : '') + '"></td>';
+          }
+          html += '</tr>';
+        });
+        html += '</table></div>';
         return html;
       }
       
       let content = '';
-      content += createGrid('DRUMS', ['Kick', 'Snare', 'HiHat', 'Clap'], (r, s) => drumPatterns[r][s]);
+      content += createDrumGrid();
       
       const bassNotes = getActiveNotes(bassPattern);
       if (bassNotes.length > 0) {
-        content += createGrid('BASS', bassNotes.map(k => k.replace('-', '')), (r, s) => bassPattern[bassNotes[r]] && bassPattern[bassNotes[r]][s]);
+        content += createGrid('BASS', bassNotes.map(k => k.replace('-', '')), (r, s) => bassPattern[bassNotes[r]] && bassPattern[bassNotes[r]][s], STEPS);
+      }
+      
+      const riffNotes = getActiveNotes(riffPattern);
+      if (riffNotes.length > 0) {
+        content += createGrid('RIFF', riffNotes.map(k => k.replace('-', '')), (r, s) => riffPattern[riffNotes[r]] && riffPattern[riffNotes[r]][s], STEPS);
       }
       
       const melNotes = getActiveNotes(melPattern);
       if (melNotes.length > 0) {
-        content += createGrid('MELODY', melNotes.map(k => k.replace('-', '')), (r, s) => melPattern[melNotes[r]] && melPattern[melNotes[r]][s]);
+        content += createGrid('MELODY', melNotes.map(k => k.replace('-', '')), (r, s) => melPattern[melNotes[r]] && melPattern[melNotes[r]][s], MELODY_STEPS);
       }
       
       const chordNotes = getActiveNotes(chordPattern);
       if (chordNotes.length > 0) {
-        content += createGrid('CHORDS', chordNotes.map(k => k.replace('-', '')), (r, s) => chordPattern[chordNotes[r]] && chordPattern[chordNotes[r]][s]);
+        content += createGrid('CHORDS', chordNotes.map(k => k.replace('-', '')), (r, s) => chordPattern[chordNotes[r]] && chordPattern[chordNotes[r]][s], STEPS);
       }
       
-      return '<!DOCTYPE html><html><head><title>Riff Player - Print</title><style>@media print{@page{margin:0.5in}}body{font-family:Arial,sans-serif;padding:20px;background:white;color:black}</style></head><body><h1 style="font-size:18px;margin-bottom:5px">Riff Player - Key of C Major</h1><div style="font-size:11px;margin-bottom:15px;color:#333">4 Bars | 16 steps per bar | Name: _________________ Date: _________</div>' + content + '<div style="margin-top:20px;font-size:10px"><span style="margin-right:15px"><span style="display:inline-block;width:12px;height:12px;border:1px solid black;background:#ccc;vertical-align:middle;margin-right:3px"></span> = Play note</span><span><span style="display:inline-block;width:12px;height:12px;border:1px solid black;background:white;vertical-align:middle;margin-right:3px"></span> = Rest</span></div><div style="margin-top:15px;font-size:10px;color:#666;text-align:right">Muziek met meester Luis 2026</div></body></html>';
+      return '<!DOCTYPE html><html><head><title>Riff Player - Print</title><style>@media print{@page{margin:0.3in;size:landscape}}body{font-family:Arial,sans-serif;padding:15px;background:white;color:black}table{border-spacing:0}</style></head><body><h1 style="font-size:16px;margin-bottom:5px">Riff Player - Key of C Major</h1><div style="font-size:10px;margin-bottom:12px;color:#333">Drums: 1 bar | Bass/Riff/Chords: 4 bars | Melody: 8 bars | Name: _________________ Date: _________</div>' + content + '<div style="margin-top:15px;font-size:9px"><span style="margin-right:15px"><span style="display:inline-block;width:10px;height:10px;border:1px solid black;background:#bbb;vertical-align:middle;margin-right:3px"></span> = Play note</span><span><span style="display:inline-block;width:10px;height:10px;border:1px solid black;background:white;vertical-align:middle;margin-right:3px"></span> = Rest</span></div><div style="margin-top:10px;font-size:9px;color:#666;text-align:right">Muziek met meester Luis 2026</div></body></html>';
     }
     
     const keyMap = { a:'C', s:'D', d:'E', f:'F', g:'G', h:'A', j:'B' };
@@ -1186,13 +1456,15 @@
     });
     
     // Auto save
-    const SAVE_KEY = 'riffPlayerState';
+    const SAVE_KEY = 'riffPlayerState_v2';
     
     function saveState() {
       const state = {
         drumPatterns,
         bassPattern,
         bassBaseNote,
+        riffPattern,
+        riffBaseNote,
         melPattern,
         melBaseNote,
         chordPattern,
@@ -1214,6 +1486,8 @@
         if (state.drumPatterns) drumPatterns = state.drumPatterns;
         if (state.bassPattern) bassPattern = state.bassPattern;
         if (state.bassBaseNote !== undefined) bassBaseNote = state.bassBaseNote;
+        if (state.riffPattern) riffPattern = state.riffPattern;
+        if (state.riffBaseNote !== undefined) riffBaseNote = state.riffBaseNote;
         if (state.melPattern) melPattern = state.melPattern;
         if (state.melBaseNote !== undefined) melBaseNote = state.melBaseNote;
         if (state.chordPattern && typeof state.chordPattern === 'object' && !Array.isArray(state.chordPattern)) {
@@ -1239,17 +1513,18 @@
     
     const debouncedSave = debounce(saveState, 500);
     
-    // Watch for changes
-    const observer = new MutationObserver(debouncedSave);
     tempoEl.addEventListener('input', debouncedSave);
     masterVolEl.addEventListener('input', debouncedSave);
     reverbMixEl.addEventListener('input', debouncedSave);
     
     // Init
     loadState();
+    buildDrumStepNums();
     buildStepNums();
+    buildMelStepNums();
     buildDrumGrid();
     buildBassGrid();
+    buildRiffGrid();
     buildMelGrid();
     buildChordGrid();
     updateBarsLabel();
