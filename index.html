@@ -186,6 +186,9 @@
       cursor: pointer;
       transition: background 0.05s;
       min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
     /* Beat shading - dark greys */
@@ -211,6 +214,16 @@
     .cell.on.riff { background: #1e40af !important; }
     .cell.on.melody { background: #059669 !important; }
     .cell.on.chord { background: #6b21a8 !important; }
+    
+    .cell .note-name {
+      display: none;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      text-align: center;
+      line-height: 1;
+    }
+    .cell.on .note-name { display: block; }
     
     .row-label .dot {
       display: inline-block;
@@ -880,6 +893,11 @@
           if (s % 16 === 0) cell.classList.add('bar');
           if (bassPattern[key][actualStep]) cell.classList.add('on');
           
+          const noteName = document.createElement('span');
+          noteName.className = 'note-name';
+          noteName.textContent = noteInfo.name;
+          cell.appendChild(noteName);
+          
           cell.dataset.key = key;
           cell.dataset.note = noteInfo.name;
           cell.dataset.octave = noteInfo.octave;
@@ -973,6 +991,11 @@
           if (s % 16 === 0) cell.classList.add('bar');
           if (riffPattern[key][actualStep]) cell.classList.add('on');
           
+          const noteName = document.createElement('span');
+          noteName.className = 'note-name';
+          noteName.textContent = noteInfo.name;
+          cell.appendChild(noteName);
+          
           cell.dataset.key = key;
           cell.dataset.note = noteInfo.name;
           cell.dataset.octave = noteInfo.octave;
@@ -1063,6 +1086,11 @@
           cell.className = 'cell melody ' + getBeatClass(s);
           if (s % 16 === 0) cell.classList.add('bar');
           if (s < MELODY_STEPS && melPattern[key][s]) cell.classList.add('on');
+          
+          const noteName = document.createElement('span');
+          noteName.className = 'note-name';
+          noteName.textContent = noteInfo.name;
+          cell.appendChild(noteName);
           
           cell.dataset.key = key;
           cell.dataset.note = noteInfo.name;
@@ -1156,6 +1184,11 @@
           cell.className = 'cell chord ' + getBeatClass(s);
           if (s % 16 === 0) cell.classList.add('bar');
           if (chordPattern[key][actualStep]) cell.classList.add('on');
+          
+          const noteName = document.createElement('span');
+          noteName.className = 'note-name';
+          noteName.textContent = noteInfo.name;
+          cell.appendChild(noteName);
           
           cell.dataset.key = key;
           cell.dataset.note = noteInfo.name;
