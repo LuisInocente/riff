@@ -68,6 +68,8 @@
     button.stop { background: #aa2222; color: #fff; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
     button.sm { padding: 2px 6px; font-size: 10px; }
+    button.mute { background: #555; min-width: 18px; }
+    button.mute.muted { background: #aa2222; color: #fff; }
     
     .main {
       flex: 1;
@@ -275,6 +277,7 @@
       <div class="section-header">
         <div class="section-label">DRUMS</div>
         <div class="section-controls">
+          <button class="sm mute" id="drumMute" title="Mute">M</button>
           <button class="sm" id="drumClear">Clear</button>
         </div>
       </div>
@@ -296,6 +299,7 @@
       <div class="section-header">
         <div class="section-label">BASS</div>
         <div class="section-controls">
+          <button class="sm mute" id="bassMute" title="Mute">M</button>
           <button class="sm" id="bassDown">▼</button>
           <button class="sm" id="bassUp">▲</button>
           <button class="sm" id="bassClear">Clear</button>
@@ -319,6 +323,7 @@
       <div class="section-header">
         <div class="section-label">RIFF</div>
         <div class="section-controls">
+          <button class="sm mute" id="riffMute" title="Mute">M</button>
           <button class="sm" id="riffDown">▼</button>
           <button class="sm" id="riffUp">▲</button>
           <button class="sm" id="riffClear">Clear</button>
@@ -341,6 +346,7 @@
       <div class="section-header">
         <div class="section-label">MELODY</div>
         <div class="section-controls">
+          <button class="sm mute" id="melMute" title="Mute">M</button>
           <button class="sm" id="melDown">▼</button>
           <button class="sm" id="melUp">▲</button>
           <button class="sm" id="melClear">Clear</button>
@@ -364,6 +370,7 @@
       <div class="section-header">
         <div class="section-label">CHORDS</div>
         <div class="section-controls">
+          <button class="sm mute" id="chordMute" title="Mute">M</button>
           <button class="sm" id="chordDown">▼</button>
           <button class="sm" id="chordUp">▲</button>
           <button class="sm" id="chordClear">Clear</button>
@@ -401,6 +408,9 @@
     
     let ctx = null, master = null, drumBus = null, bassBus = null, riffBus = null, melodyBus = null, chordBus = null;
     let convolver = null, reverbWet = null, reverbDry = null, limiter = null;
+    
+    // Mute states
+    let drumMuted = false, bassMuted = false, riffMuted = false, melMuted = false, chordMuted = false;
     
     function createReverbIR(duration, decay) {
       const length = ctx.sampleRate * duration;
@@ -787,6 +797,37 @@
     $('drumClear').addEventListener('click', () => {
       drumPatterns = DRUMS.map(() => Array(DRUM_STEPS).fill(false));
       drumCells.forEach(r => r.forEach(c => c.classList.remove('on')));
+      debouncedSave();
+    });
+    
+    // Mute button handlers
+    $('drumMute').addEventListener('click', () => {
+      drumMuted = !drumMuted;
+      $('drumMute').classList.toggle('muted', drumMuted);
+      debouncedSave();
+    });
+    
+    $('bassMute').addEventListener('click', () => {
+      bassMuted = !bassMuted;
+      $('bassMute').classList.toggle('muted', bassMuted);
+      debouncedSave();
+    });
+    
+    $('riffMute').addEventListener('click', () => {
+      riffMuted = !riffMuted;
+      $('riffMute').classList.toggle('muted', riffMuted);
+      debouncedSave();
+    });
+    
+    $('melMute').addEventListener('click', () => {
+      melMuted = !melMuted;
+      $('melMute').classList.toggle('muted', melMuted);
+      debouncedSave();
+    });
+    
+    $('chordMute').addEventListener('click', () => {
+      chordMuted = !chordMuted;
+      $('chordMute').classList.toggle('muted', chordMuted);
       debouncedSave();
     });
     
@@ -1216,44 +1257,54 @@
         const bassStep = currentStep % STEPS; // 64-step cycle for bass/riff/chords
         
         // Drums loop every 16 steps
-        DRUMS.forEach((drum, di) => {
-          if (drumPatterns[di][drumStep]) playDrum(drum.key, nextTime);
-        });
+        if (!drumMuted) {
+          DRUMS.forEach((drum, di) => {
+            if (drumPatterns[di][drumStep]) playDrum(drum.key, nextTime);
+          });
+        }
         
         // Bass loops every 64 steps
-        for (const key in bassPattern) {
-          if (bassPattern[key][bassStep]) {
-            const [note, oct] = key.split('-');
-            playBass(note, +oct, nextTime);
-            break;
+        if (!bassMuted) {
+          for (const key in bassPattern) {
+            if (bassPattern[key][bassStep]) {
+              const [note, oct] = key.split('-');
+              playBass(note, +oct, nextTime);
+              break;
+            }
           }
         }
         
         // Riff loops every 64 steps
-        for (const key in riffPattern) {
-          if (riffPattern[key][bassStep]) {
-            const [note, oct] = key.split('-');
-            playRiff(note, +oct, nextTime);
-            break;
+        if (!riffMuted) {
+          for (const key in riffPattern) {
+            if (riffPattern[key][bassStep]) {
+              const [note, oct] = key.split('-');
+              playRiff(note, +oct, nextTime);
+              break;
+            }
           }
         }
         
         // Melody plays full 128 steps
-        for (const key in melPattern) {
-          if (melPattern[key][step]) {
-            const [note, oct] = key.split('-');
-            playMelody(note, +oct, nextTime);
-            break;
+        if (!melMuted) {
+          for (const key in melPattern) {
+            if (melPattern[key][step]) {
+              const [note, oct] = key.split('-');
+              playMelody(note, +oct, nextTime);
+              break;
+            }
           }
         }
         
         // Chords loop every 64 steps
-        let chordDelay = 0;
-        for (const key in chordPattern) {
-          if (chordPattern[key][bassStep]) {
-            const [note, oct] = key.split('-');
-            playChordNote(note, +oct, nextTime + chordDelay * 0.008);
-            chordDelay++;
+        if (!chordMuted) {
+          let chordDelay = 0;
+          for (const key in chordPattern) {
+            if (chordPattern[key][bassStep]) {
+              const [note, oct] = key.split('-');
+              playChordNote(note, +oct, nextTime + chordDelay * 0.008);
+              chordDelay++;
+            }
           }
         }
         
@@ -1472,7 +1523,12 @@
         viewStart,
         tempo: +tempoEl.value,
         volume: +masterVolEl.value,
-        reverb: +reverbMixEl.value
+        reverb: +reverbMixEl.value,
+        drumMuted,
+        bassMuted,
+        riffMuted,
+        melMuted,
+        chordMuted
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(state));
     }
@@ -1498,6 +1554,28 @@
         if (state.tempo) { tempoEl.value = state.tempo; tempoValEl.textContent = state.tempo; }
         if (state.volume !== undefined) masterVolEl.value = state.volume;
         if (state.reverb !== undefined) reverbMixEl.value = state.reverb;
+        
+        // Load mute states
+        if (state.drumMuted !== undefined) {
+          drumMuted = state.drumMuted;
+          $('drumMute').classList.toggle('muted', drumMuted);
+        }
+        if (state.bassMuted !== undefined) {
+          bassMuted = state.bassMuted;
+          $('bassMute').classList.toggle('muted', bassMuted);
+        }
+        if (state.riffMuted !== undefined) {
+          riffMuted = state.riffMuted;
+          $('riffMute').classList.toggle('muted', riffMuted);
+        }
+        if (state.melMuted !== undefined) {
+          melMuted = state.melMuted;
+          $('melMute').classList.toggle('muted', melMuted);
+        }
+        if (state.chordMuted !== undefined) {
+          chordMuted = state.chordMuted;
+          $('chordMute').classList.toggle('muted', chordMuted);
+        }
       } catch (e) {
         console.warn('Failed to load saved state:', e);
       }
