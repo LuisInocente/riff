@@ -1473,7 +1473,7 @@
         return html;
       }
       
-      function createGrid(title, labels, getIsOn, steps) {
+      function createGrid(title, labels, getIsOn, steps, noteKeys) {
         let html = '<div style="margin-bottom:15px"><div style="font-size:12px;font-weight:bold;margin-bottom:3px">' + title + '</div>';
         html += '<table style="border-collapse:collapse;">';
         // Beat numbers row
@@ -1489,11 +1489,13 @@
         html += '</tr>';
         // Grid rows
         labels.forEach((label, rowIdx) => {
+          const noteName = noteKeys ? noteKeys[rowIdx].split('-')[0] : '';
           html += '<tr><td style="width:' + LABEL_WIDTH + 'px;font-size:9px;text-align:right;padding-right:3px;border:none;">' + label + '</td>';
           for (let s = 0; s < steps; s++) {
             const isOn = getIsOn(rowIdx, s, label);
             const isBeatStart = s % 4 === 0;
-            html += '<td style="width:' + CELL_WIDTH + 'px;height:14px;border:1px solid #999;background:' + (isOn ? '#bbb' : 'white') + (isBeatStart ? ';border-left:2px solid black' : '') + '"></td>';
+            const cellContent = isOn ? '<span style="font-size:7px;font-weight:bold;">' + noteName + '</span>' : '';
+            html += '<td style="width:' + CELL_WIDTH + 'px;height:14px;border:1px solid #999;background:' + (isOn ? '#bbb' : 'white') + (isBeatStart ? ';border-left:2px solid black' : '') + ';text-align:center;vertical-align:middle;">' + cellContent + '</td>';
           }
           html += '</tr>';
         });
@@ -1506,22 +1508,22 @@
       
       const bassNotes = getActiveNotes(bassPattern);
       if (bassNotes.length > 0) {
-        content += createGrid('BASS', bassNotes.map(k => k.replace('-', '')), (r, s) => bassPattern[bassNotes[r]] && bassPattern[bassNotes[r]][s], STEPS);
+        content += createGrid('BASS', bassNotes.map(k => k.replace('-', '')), (r, s) => bassPattern[bassNotes[r]] && bassPattern[bassNotes[r]][s], STEPS, bassNotes);
       }
       
       const riffNotes = getActiveNotes(riffPattern);
       if (riffNotes.length > 0) {
-        content += createGrid('RIFF', riffNotes.map(k => k.replace('-', '')), (r, s) => riffPattern[riffNotes[r]] && riffPattern[riffNotes[r]][s], STEPS);
+        content += createGrid('RIFF', riffNotes.map(k => k.replace('-', '')), (r, s) => riffPattern[riffNotes[r]] && riffPattern[riffNotes[r]][s], STEPS, riffNotes);
       }
       
       const melNotes = getActiveNotes(melPattern);
       if (melNotes.length > 0) {
-        content += createGrid('MELODY', melNotes.map(k => k.replace('-', '')), (r, s) => melPattern[melNotes[r]] && melPattern[melNotes[r]][s], MELODY_STEPS);
+        content += createGrid('MELODY', melNotes.map(k => k.replace('-', '')), (r, s) => melPattern[melNotes[r]] && melPattern[melNotes[r]][s], MELODY_STEPS, melNotes);
       }
       
       const chordNotes = getActiveNotes(chordPattern);
       if (chordNotes.length > 0) {
-        content += createGrid('CHORDS', chordNotes.map(k => k.replace('-', '')), (r, s) => chordPattern[chordNotes[r]] && chordPattern[chordNotes[r]][s], STEPS);
+        content += createGrid('CHORDS', chordNotes.map(k => k.replace('-', '')), (r, s) => chordPattern[chordNotes[r]] && chordPattern[chordNotes[r]][s], STEPS, chordNotes);
       }
       
       return '<!DOCTYPE html><html><head><title>Riff Player - Print</title><style>@media print{@page{margin:0.3in;size:landscape}}body{font-family:Arial,sans-serif;padding:15px;background:white;color:black}table{border-spacing:0}</style></head><body><h1 style="font-size:16px;margin-bottom:5px">Riff Player - Key of C Major</h1><div style="font-size:10px;margin-bottom:12px;color:#333">Drums: 1 bar | Bass/Riff/Chords: 4 bars | Melody: 8 bars | Name: _________________ Date: _________</div>' + content + '<div style="margin-top:15px;font-size:9px"><span style="margin-right:15px"><span style="display:inline-block;width:10px;height:10px;border:1px solid black;background:#bbb;vertical-align:middle;margin-right:3px"></span> = Play note</span><span><span style="display:inline-block;width:10px;height:10px;border:1px solid black;background:white;vertical-align:middle;margin-right:3px"></span> = Rest</span></div><div style="margin-top:10px;font-size:9px;color:#666;text-align:right">Muziek met meester Luis 2026</div></body></html>';
