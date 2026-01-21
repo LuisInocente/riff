@@ -216,14 +216,15 @@
     .cell.on.chord { background: #6b21a8 !important; }
     
     .cell .note-name {
-      display: none;
-      font-size: 8px;
-      font-weight: 700;
-      color: #fff;
-      text-align: center;
-      line-height: 1;
+      display: none !important;
+      font-size: 8px !important;
+      font-weight: 700 !important;
+      color: #fff !important;
+      text-align: center !important;
+      line-height: 1 !important;
+      pointer-events: none !important;
     }
-    .cell.on .note-name { display: block; }
+    .cell.on .note-name { display: flex !important; }
     
     .row-label .dot {
       display: inline-block;
@@ -896,6 +897,7 @@
           const noteName = document.createElement('span');
           noteName.className = 'note-name';
           noteName.textContent = noteInfo.name;
+          noteName.style.cssText = 'font-size:8px;font-weight:700;color:#fff;';
           cell.appendChild(noteName);
           
           cell.dataset.key = key;
@@ -994,6 +996,7 @@
           const noteName = document.createElement('span');
           noteName.className = 'note-name';
           noteName.textContent = noteInfo.name;
+          noteName.style.cssText = 'font-size:8px;font-weight:700;color:#fff;';
           cell.appendChild(noteName);
           
           cell.dataset.key = key;
@@ -1090,6 +1093,7 @@
           const noteName = document.createElement('span');
           noteName.className = 'note-name';
           noteName.textContent = noteInfo.name;
+          noteName.style.cssText = 'font-size:8px;font-weight:700;color:#fff;';
           cell.appendChild(noteName);
           
           cell.dataset.key = key;
@@ -1188,6 +1192,7 @@
           const noteName = document.createElement('span');
           noteName.className = 'note-name';
           noteName.textContent = noteInfo.name;
+          noteName.style.cssText = 'font-size:8px;font-weight:700;color:#fff;';
           cell.appendChild(noteName);
           
           cell.dataset.key = key;
